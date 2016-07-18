@@ -1,10 +1,12 @@
 package bo.gob.agetic.flowers2.ui;
 
 import android.content.Intent;
+import android.os.AsyncTask;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.util.Log;
 
 import java.util.List;
 
@@ -13,6 +15,8 @@ import bo.gob.agetic.flowers2.controller.RestManager;
 import bo.gob.agetic.flowers2.model.Flower;
 import bo.gob.agetic.flowers2.model.adapter.FlowerAdapter;
 import bo.gob.agetic.flowers2.model.helper.Constants;
+import bo.gob.agetic.flowers2.model.helper.FlowerDatabase;
+import bo.gob.agetic.flowers2.model.helper.Utils;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -21,6 +25,7 @@ public class MainActivity extends AppCompatActivity implements FlowerAdapter.Flo
     private RecyclerView mRecyclerView;
     private RestManager mManager;
     private FlowerAdapter mFlowerAdapter;
+    private FlowerDatabase mDatabase;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -29,23 +34,43 @@ public class MainActivity extends AppCompatActivity implements FlowerAdapter.Flo
         configViews();
 
         mManager = new RestManager();
+        mDatabase = new FlowerDatabase(this);
+
+        if(Utils.isNetworkAvailable(getApplicationContext())){
+            getFeed();
+        }else{
+            getFeedFromDatabase();
+        }
+    }
+
+    private void getFeedFromDatabase() {
+        mDatabase = new FlowerDatabase(this);
+        List<Flower> flowerList = mDatabase.getFlowers();
+
+    }
+
+    private void getFeed() {
         Call<List<Flower>> listCall = mManager.getFlowerService().getAllFlowers();
         listCall.enqueue(new Callback<List<Flower>>() {
             @Override
             public void onResponse(Call<List<Flower>> call, Response<List<Flower>> response) {
-               if(response.isSuccessful()){
+                if(response.isSuccessful()){
                     List<Flower> flowerList = response.body();
 
-                   for(int i=1; i< flowerList.size(); i++){
-                       Flower flower = flowerList.get(i);
-                       mFlowerAdapter.addFlower(flower);
-                   }
-               }else{
-                   int sc = response.code();
-                   switch (sc){
+                    for(int i=1; i< flowerList.size(); i++){
+                        Flower flower = flowerList.get(i);
 
-                   }
-               }
+                        SaveIntoDatabase task = new SaveIntoDatabase();
+                        task.execute(flower);
+
+                        mFlowerAdapter.addFlower(flower);
+                    }
+                }else{
+                    int sc = response.code();
+                    switch (sc){
+
+                    }
+                }
             }
 
             @Override
@@ -53,7 +78,6 @@ public class MainActivity extends AppCompatActivity implements FlowerAdapter.Flo
 
             }
         });
-        
     }
 
     private void configViews() {
@@ -72,4 +96,32 @@ public class MainActivity extends AppCompatActivity implements FlowerAdapter.Flo
         intent.putExtra(Constants.REFERENCE.FLOWER, selectedFlower);
         startActivity(intent);
     }
+    public class SaveIntoDatabase extends AsyncTask<Flower, Void, Void> {
+
+
+        private final String TAG = SaveIntoDatabase.class.getSimpleName();
+
+        @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+        }
+
+        @Override
+        protected Void doInBackground(Flower... params) {
+
+            Flower flower = params[0];
+
+            try {
+
+                mDatabase.addFlower(flower);
+
+            } catch (Exception e) {
+                Log.d(TAG, e.getMessage());
+            }
+
+            return null;
+        }
+
+    }
+
 }
