@@ -46,6 +46,10 @@ public class MainActivity extends AppCompatActivity implements FlowerAdapter.Flo
     private void getFeedFromDatabase() {
         mDatabase = new FlowerDatabase(this);
         List<Flower> flowerList = mDatabase.getFlowers();
+        for(int i=1; i< flowerList.size(); i++){
+            Flower flower = flowerList.get(i);
+            mFlowerAdapter.addFlower(flower);
+        }
 
     }
 
